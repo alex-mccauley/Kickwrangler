@@ -1,0 +1,15 @@
+to ssh:
+go to Downloads
+run: ssh -i Insight2015B.pem.txt ubuntu@52.8.172.231
+
+# scp
+scp -i ~/Downloads/Insight2015B.pem.txt [file] ubuntu@52.8.172.231
+
+# run frontend
+sudo supervisord -c simple.conf 
+
+# see running processes:
+ps -A
+
+# kill
+sudo kill -9 [...]

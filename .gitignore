@@ -1,4 +1,7 @@
 lda_grouped*
 lda_v2*
 lda_comm*
+lda*
 data*
+*.sql
+2015-06-10-comments_db_with_simple_sentiments_2.p

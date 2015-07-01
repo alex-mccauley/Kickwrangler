@@ -1,0 +1,101 @@
+import pymysql as mdb
+import pickle
+import pandas as pd
+import re
+import sys
+
+class create_database:
+
+	def __init__(self):
+		self.con = mdb.connect(host='localhost', user='root', passwd='', db='kickstarterdb', autocommit=True, charset='utf8')
+
+		# compiled regex for string cleaning - remove all non alpha-numeric (and whitespace) characeters
+		self.regex = re.compile('[^a-zA-Z0-9 ]')
+
+	## Helper methods
+	def _show_tables(self):
+		return self._execute_sql("SHOW TABLES")
+
+	def _fetch_counts(self, table_name):
+		return self._execute_sql("SELECT COUNT(*) FROM %s" % table_name)
+
+	def _clean_comment(self,text):
+		return self.regex.sub('',text)
+
+	# simple SQL interface for one-off commands
+	def _execute_sql(self, sql_string):
+		cur = self.con.cursor(mdb.cursors.DictCursor)
+		cur.execute(sql_string)
+		return cur.fetchall()
+
+
+	def _create_projects_table(self):
+		# load tech projects
+		tech_projects = pickle.load(open('data/2015_06_04_tech_projects.p','rb'))
+
+		# convert to dataframe
+		k = []
+		pledged = []
+		backer_count = []
+		category = []
+
+		for key in tech_projects:
+		    proj = tech_projects[key]
+		    k.append(key)
+		    pledged.append(proj['pledged'])
+		    category.append(proj['category']['slug'])
+		    backer_count.append(proj['backers_count'])
+		    url.
+		            
+		proj_data = pd.DataFrame()
+		proj_data['project_id']=k
+		proj_data['pledged']=pledged
+		proj_data['backer_count']=backer_count
+		proj_data['category']=category
+
+		cur = self.con.cursor()
+
+		cur.execute("DROP TABLE IF EXISTS projects")
+		cur.execute("CREATE TABLE projects (project_id int, pledged int, backer_count int, category VARCHAR(255));")
+
+		print 'number of rows = %d' % len(proj_data.index)
+		for ii in proj_data.index:
+			row = proj_data.iloc[ii]
+			str_pre = "INSERT INTO projects (project_id, pledged, backer_count, category) " 
+			str_values = "VALUES (%d, %d, %d, '%s');" % (row['project_id'], row['pledged'], row['backer_count'], row['category'])
+			cur.execute(str_pre + str_values)
+
+	def _create_comments_table(self):
+		comment_data = pickle.load(open('data/sentiment_data_06_08.p','rb'))
+
+		cur = self.con.cursor()
+
+		# CHARACTER SET = utf8mb4
+		cur.execute("DROP TABLE IF EXISTS comments") # TODO: add user_id
+		cur.execute("Create TABLE comments (project_id int, date DATE, text VARCHAR(10000) CHARACTER SET utf8mb4)")
+
+		for ii in comment_data['data'].index:
+			if ii % 10000 == 0:
+				print 'running row %d of %d' % (ii, len(comment_data['data']))
+				sys.stdout.flush()
+			
+			row = comment_data['data'].iloc[ii]
+			comment = self._clean_comment(row['text'])
+
+			str_pre = "INSERT INTO comments (project_id, date, text) "
+			str_values = "VALUES (%d, '%s', '%s');" % (row['keys'], str(row['dates'].date()), comment)
+			cur.execute(str_pre + str_values)
+
+	def _create_funding_goal_table(self):
+		goal_data = pickle.load(open('data/campaign_goal_data_06_09.p','rb'))
+
+		cur = self.con.cursor()
+
+		cur.execute("DROP TABLE IF EXISTS funding_goal")
+		cur.execute("CREATE TABLE funding_goal (project_id int, funding_goal int);")
+
+		for ii in goal_data.index:
+			row = goal_data.iloc[ii]
+			str_pre = "INSERT INTO funding_goal (project_id, funding_goal) "
+			str_values = "VALUES (%d, %d);" % (row['keys'], row['funding_goal'])
+			cur.execute(str_pre + str_values)
